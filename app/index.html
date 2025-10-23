@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>NearStarXR - Final Aesthetics</title>
+    <title>NearStarXR - Polished MVP</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-event-set-component@^4.0.0/dist/aframe-event-set-component.min.js"></script>
   </head>
@@ -10,7 +10,8 @@
       <a-entity id="stars-container"></a-entity>
       
       <a-entity id="orbit-pivot">
-        <a-entity id="camera-rig" position="0 5 20" wasd-controls>
+        <!-- UPDATED: Camera rig starts at Y=0 to center the Sun vertically -->
+        <a-entity id="camera-rig" position="0 0 20" wasd-controls>
             <a-camera id="player-camera" look-controls="mouseDragEnabled: true">
                 <a-cursor color="#FFF"></a-cursor>
                 <a-text id="star-label" value="" position="0 -0.6 -1.5" scale="1.5 1.5 1.5" align="center"></a-text>
@@ -20,70 +21,101 @@
     </a-scene>
 
     <script>
-      // --- UPDATED: Restored exaggerated colors + a new, more intense red for M-types ---
-      const spectralColors = { 
-        'O': '#9bb0ff', // O-type: Bright Blue-White
-        'B': '#aabfff', // B-type: Blue-White
-        'A': '#cad8ff', // A-type: White
-        'F': '#f8f7ff', // F-type: Yellow-White
-        'G': '#FFEE58', // G-type: Vibrant Yellow (Sun-like)
-        'K': '#FFA726', // K-type: Rich Orange
-        'M': '#E53935', // M-type: Strong Red (for Red Dwarfs)
-        'D': '#FFFFFF'  // D-type: White (White Dwarfs)
-      };
-      
-      const getStarColor = (spectralType) => {
-        if (!spectralType || typeof spectralType !== 'string' || spectralType.length === 0) return '#FFFFFF';
-        const type = spectralType.charAt(0).toUpperCase();
-        return spectralColors[type] || '#FFFFFF';
-      };
+      AFRAME.registerComponent('scene-manager', {
+        init: function () {
+          this.orbitPivotEl = document.getElementById('orbit-pivot');
+          this.cameraEl = document.getElementById('player-camera');
+          
+          // State variables
+          this.isAutoOrbiting = true;
+          this.isManualOrbiting = false;
+          this.isLooking = false;
+          this.isDragging = false; // NEW: Tracks if a drag occurred
+          this.lastMouseX = 0;
+          this.mouseDownPos = new THREE.Vector2();
 
-      const sceneEl = document.querySelector('a-scene');
+          // UPDATED: Precise calculation for 1 rotation per minute
+          const DEGREES_PER_SECOND = 360 / 60;
+          const RADIANS_PER_SECOND = THREE.MathUtils.degToRad(DEGREES_PER_SECOND);
+          this.ROTATION_PER_MILLISECOND = RADIANS_PER_SECOND / 1000;
 
-      window.addEventListener('load', () => {
-        fetch('/api/stars')
-          .then(response => response.json())
-          .then(stars => {
-            const container = document.getElementById('stars-container');
-            stars.forEach(star => {
-              const starSystem = document.createElement('a-entity');
-              starSystem.setAttribute('position', `${star.x} ${star.z} ${-star.y}`);
-              container.appendChild(starSystem);
+          this.addEventListeners();
+        },
 
-              const starEntity = document.createElement('a-sphere');
-              const baseRadius = 0.05; 
-              const scaleFactor = 0.15;
-              const solarRadius = parseFloat(star['Radius(R☉)']) || 1.0;
-              const visualRadius = baseRadius + (solarRadius * scaleFactor);
-              starEntity.setAttribute('radius', visualRadius); 
-              const starColor = getStarColor(star.SpectralType);
-              starEntity.setAttribute('color', starColor);
-              starEntity.setAttribute('material', 'shader: standard; emissive: ' + starColor + '; emissiveIntensity: 1.0');
-              starEntity.setAttribute('event-set__enter', `_event: mouseenter; _target: #star-label; value: ${star.Star}`);
-              starEntity.setAttribute('event-set__leave', `_event: mouseleave; _target: #star-label; value: `);
-              starSystem.appendChild(starEntity);
+        // The tick function now uses 'delta' for frame-rate independent speed
+        tick: function (time, delta) {
+          if (this.isAutoOrbiting) {
+            this.orbitPivotEl.object3D.rotation.y += this.ROTATION_PER_MILLISECOND * delta;
+          }
+        },
 
-              // --- UPDATED: Halo size is now smaller ---
-              const haloEntity = document.createElement('a-sphere');
-              haloEntity.setAttribute('radius', visualRadius * 4); // Was 8, now 4
-              haloEntity.setAttribute('material', `shader: flat; color: ${starColor}; transparent: true; opacity: 0.2`);
-              haloEntity.setAttribute('raycaster-listen', 'false');
-              starSystem.appendChild(haloEntity);
-            });
-          })
+        addEventListeners: function () {
+          const sceneEl = this.el;
+          
+          sceneEl.canvas.addEventListener('mousedown', (e) => {
+            this.isDragging = false; // Reset drag state on new mousedown
+            this.mouseDownPos.set(e.clientX, e.clientY);
+
+            if (e.shiftKey) {
+              this.isLooking = true;
+              this.isAutoOrbiting = false;
+            } else {
+              this.isManualOrbiting = true;
+              this.isAutoOrbiting = false;
+              this.lastMouseX = e.clientX;
+              this.cameraEl.setAttribute('look-controls', 'enabled', false);
+            }
+          });
+
+          window.addEventListener('mousemove', (e) => {
+            if (!this.isManualOrbiting && !this.isLooking) return;
+
+            // If the mouse has moved significantly, it's a drag
+            const mousePos = new THREE.Vector2(e.clientX, e.clientY);
+            if (mousePos.distanceTo(this.mouseDownPos) > 5) { // 5 pixel threshold
+                this.isDragging = true;
+            }
+
+            if (this.isManualOrbiting && this.isDragging) {
+              const deltaX = e.clientX - this.lastMouseX;
+              this.lastMouseX = e.clientX;
+              this.orbitPivotEl.object3D.rotation.y += deltaX * 0.005;
+            }
+          });
+
+          window.addEventListener('mouseup', (e) => {
+            // UPDATED: On mouseup, check if it was a drag or a click
+            if (!this.isDragging && !e.shiftKey) {
+              // If it wasn't a drag, it was a click: TOGGLE the orbit state.
+              this.isAutoOrbiting = !this.isAutoOrbiting;
+            }
+            // If it WAS a drag, the orbit just remains paused.
+
+            if (this.isManualOrbiting) {
+              this.cameraEl.setAttribute('look-controls', 'enabled', true);
+            }
+            // Reset all interaction states
+            this.isManualOrbiting = false;
+            this.isLooking = false;
+            this.isDragging = false;
+          });
+          
+          const cameraRigEl = document.getElementById('camera-rig');
+          document.addEventListener('wheel', (event) => {
+            const zoomSpeed = 0.01;
+            let newZ = cameraRigEl.object3D.position.z + (event.deltaY * zoomSpeed);
+            if (newZ < 5) newZ = 5; if (newZ > 50) newZ = 50;
+            cameraRigEl.setAttribute('position', { z: newZ });
+          });
+        }
       });
 
-      // --- Controls are unchanged and stable ---
-      sceneEl.addEventListener('loaded', () => {
-        const orbitPivotEl = document.getElementById('orbit-pivot');
-        const cameraRigEl = document.getElementById('camera-rig');
-        let isOrbiting = false;
-        let lastMouseX = 0;
-        sceneEl.canvas.addEventListener('mousedown', (e) => { if (e.shiftKey) { isOrbiting = true; lastMouseX = e.clientX; cameraRigEl.querySelector('a-camera').setAttribute('look-controls', 'enabled', false); } });
-        window.addEventListener('mousemove', (e) => { if (isOrbiting) { const deltaX = e.clientX - lastMouseX; lastMouseX = e.clientX; const currentRotation = orbitPivotEl.getAttribute('rotation'); orbitPivotEl.setAttribute('rotation', { y: currentRotation.y + deltaX * 0.5 }); } });
-        window.addEventListener('mouseup', () => { if (isOrbiting) { isOrbiting = false; cameraRigEl.querySelector('a-camera').setAttribute('look-controls', 'enabled', true); } });
-        document.addEventListener('wheel', (event) => { const zoomSpeed = 0.01; let newZ = cameraRigEl.objectD.position.z + (event.deltaY * zoomSpeed); if (newZ < 5) newZ = 5; if (newZ > 50) newZ = 50; cameraRigEl.setAttribute('position', { z: newZ }); });
-      });
+      document.querySelector('a-scene').setAttribute('scene-manager', '');
+
+      // --- Star creation logic is unchanged ---
+      const spectralColors = { 'O': '#9bb0ff', 'B': '#aabfff', 'A': '#cad8ff', 'F': '#f8f7ff', 'G': '#FFEE58', 'K': '#FFA726', 'M': '#E53935', 'D': '#FFFFFF' };
+      const getStarColor = (spectralType) => { if (!spectralType || typeof spectralType !== 'string' || spectralType.length === 0) return '#FFFFFF'; const type = spectralType.charAt(0).toUpperCase(); return spectralColors[type] || '#FFFFFF'; };
+      window.addEventListener('load', () => { fetch('/api/stars').then(response => response.json()).then(stars => { const container = document.getElementById('stars-container'); stars.forEach(star => { const starSystem = document.createElement('a-entity'); starSystem.setAttribute('position', `${star.x} ${star.z} ${-star.y}`); container.appendChild(starSystem); const starEntity = document.createElement('a-sphere'); const baseRadius = 0.05; const scaleFactor = 0.15; const solarRadius = parseFloat(star['Radius(R☉)']) || 1.0; const visualRadius = baseRadius + (solarRadius * scaleFactor); starEntity.setAttribute('radius', visualRadius); const starColor = getStarColor(star.SpectralType); starEntity.setAttribute('color', starColor); starEntity.setAttribute('material', 'shader: standard; emissive: ' + starColor + '; emissiveIntensity: 1.0'); starEntity.setAttribute('event-set__enter', `_event: mouseenter; _target: #star-label; value: ${star.Star}`); starEntity.setAttribute('event-set__leave', `_event: mouseleave; _target: #star-label; value: `); starSystem.appendChild(starEntity); const haloEntity = document.createElement('a-sphere'); haloEntity.setAttribute('radius', visualRadius * 4); haloEntity.setAttribute('material', `shader: flat; color: ${starColor}; transparent: true; opacity: 0.2`); haloEntity.setAttribute('raycaster-listen', 'false'); starSystem.appendChild(haloEntity); }); }) });
     </script>
   </body>
 </html>
