@@ -1,0 +1,21 @@
+# Git repository
+.git
+.gitignore
+
+# Docker specific files
+Dockerfile
+.dockerignore
+
+# Python virtual environment
+venv/
+/venv/
+
+# Python cache files
+__pycache__/
+
+# IDE/Editor directories
+.vscode/
+.idea/
+
+# Dev Log - not needed in the final app
+DEVLOG.md

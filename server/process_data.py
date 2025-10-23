@@ -1,27 +1,56 @@
 import pandas as pd
 import numpy as np
 import json
+import re
+import os
 
-# Helper to convert RA/Dec from HMS/DMS to degrees, then radians
-def to_radians(s, is_ra=False):
-    parts = s.replace('h', ' ').replace('m', ' ').replace('s', ' ').replace('°', ' ').replace("'", ' ').replace('"', ' ').split()
-    d, m, s = [float(p) for p in parts]
-    decimal = d + m/60 + s/3600
+# Get the absolute path of the directory where this script is located
+script_dir = os.path.dirname(os.path.realpath(__file__))
+
+# Define the full paths for the input and output files
+csv_path = os.path.join(script_dir, 'stars.csv')
+output_path = os.path.join(script_dir, 'stars.json')
+
+
+# Helper to convert RA/Dec from HMS/DMS to decimal degrees, then radians
+def to_radians(coord_str, is_ra=False):
+    # Ensure we are working with a clean string
+    s = str(coord_str).strip()
+
+    parts = re.findall(r'[\d.]+', s)
+    
+    # If the format isn't right, return 0.0
+    if len(parts) != 3:
+        return 0.0
+
+    # Use non-conflicting variable names
+    d_val, m_val, s_val = [float(p) for p in parts]
+    
+    # Check the original string for the negative sign to determine calculation
+    if s.startswith('-'):
+        decimal = -d_val - m_val/60 - s_val/3600
+    else:
+        decimal = d_val + m_val/60 + s_val/3600
+        
     if is_ra:
-        decimal *= 15 # Convert hours to degrees
+        decimal *= 15 # Convert hours to degrees for Right Ascension
+        
     return np.deg2rad(decimal)
 
-# Read data and calculate XYZ coordinates
-df = pd.read_csv('stars.csv')
+# Read data from the CSV file using the full path
+# Ensure the columns that should be strings are read as strings
+df = pd.read_csv(csv_path, dtype={'RightAscension': str, 'Declination': str})
+
+# Apply the conversion to calculate coordinates in radians
 df['ra_rad'] = df['RightAscension'].apply(lambda x: to_radians(x, is_ra=True))
 df['dec_rad'] = df['Declination'].apply(to_radians)
 
+# Calculate Cartesian (X, Y, Z) coordinates
 df['x'] = df['Distance(ly)'] * np.cos(df['dec_rad']) * np.cos(df['ra_rad'])
 df['y'] = df['Distance(ly)'] * np.cos(df['dec_rad']) * np.sin(df['ra_rad'])
 df['z'] = df['Distance(ly)'] * np.sin(df['dec_rad'])
 
-# Save to JSON
-df.to_json('stars.json', orient='records')
-print("Processed data and saved to stars.json")
+# Save the processed data to the JSON file using the full path
+df.to_json(output_path, orient='records', indent=4)
 
-# Run this once: python process_data.py
+print(f"Successfully processed star data and saved to {output_path}")

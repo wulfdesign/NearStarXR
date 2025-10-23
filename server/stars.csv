@@ -1,7 +1,16 @@
-Star,Distance(ly),SpectralType,RightAscension,Declination
-Sun,0,G2V,0,0
-Proxima Centauri,4.24,M5.5Ve,14h 29m 42.95s,-62° 40' 46.1"
-Alpha Centauri A,4.37,G2V,14h 39m 36.5s,-60° 50' 2"
-Alpha Centauri B,4.37,K1V,14h 39m 35.08s,-60° 50' 13.8"
-Barnard's Star,5.96,M4.0Ve,17h 57m 48.5s,+04° 41' 36"
-...
+Star,Distance(ly),SpectralType,RightAscension,Declination,Radius(R☉)
+Sun,0,G2V,0h 0m 0s,+0° 0' 0",1.0
+Proxima Centauri,4.24,M5.5Ve,14h 29m 42.95s,-62° 40' 46.1",0.154
+Alpha Centauri A,4.37,G2V,14h 39m 36.5s,-60° 50' 2",1.22
+Alpha Centauri B,4.37,K1V,14h 39m 35.08s,-60° 50' 13.8",0.86
+Barnard's Star,5.96,M4.0Ve,17h 57m 48.5s,+04° 41' 36",0.19
+Wolf 359,7.78,M6.5Ve,10h 56m 29.24s,+07° 00' 52",0.16
+Lalande 21185,8.29,M2.0V,11h 03m 20.2s,+35° 58' 11.6",0.39
+Sirius A,8.58,A1V,06h 45m 08.92s,-16° 42' 58",1.71
+Sirius B,8.58,DA2,06h 45m 08.92s,-16° 42' 58",0.0084
+Luyten 726-8A,8.73,M5.5Ve,01h 39m 01.3s,-17° 57' 01",0.14
+Luyten 726-8B,8.73,M6.0Ve,01h 39m 01.3s,-17° 57' 01",0.14
+Ross 154,9.68,M3.5Ve,18h 49m 49.39s,-23° 50' 10.4",0.24
+Ross 248,10.32,M5.5Ve,23h 41m 54.7s,+44° 10' 30",0.16
+Epsilon Eridani,10.52,K2V,03h 32m 55.84s,-09° 27' 29.7",0.74
+Lacaille 9352,10.74,M0.5V,23h 05m 52.04s,-35° 51' 11.1",0.47

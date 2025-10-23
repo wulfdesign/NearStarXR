@@ -1,53 +1,82 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>NearStarXR</title>
+    <title>NearStarXR - Stable</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-event-set-component@^4.0.0/dist/aframe-event-set-component.min.js"></script>
   </head>
   <body>
+    <!-- We no longer need any assets -->
     <a-scene background="color: #111">
       <a-entity id="stars-container"></a-entity>
-      <a-entity id="camera-rig">
-          <a-camera>
-              <a-cursor color="#FFF"></a-cursor>
-              <a-text id="star-label" value="" position="0 -0.5 -1" align="center"></a-text>
-          </a-camera>
+      
+      <a-entity id="orbit-pivot">
+        <a-entity id="camera-rig" position="0 5 20" wasd-controls>
+            <a-camera id="player-camera" look-controls="mouseDragEnabled: true">
+                <a-cursor color="#FFF"></a-cursor>
+                <a-text id="star-label" value="" position="0 -0.6 -1.5" scale="1.5 1.5 1.5" align="center"></a-text>
+            </a-camera>
+        </a-entity>
       </a-entity>
     </a-scene>
 
     <script>
-      // --- Star Data and Colors ---
       const spectralColors = { 'O': '#9bb0ff', 'B': '#aabfff', 'A': '#cad8ff', 'F': '#f8f7ff', 'G': '#fff4ea', 'K': '#ffd2a1', 'M': '#ffb568', 'D': '#FFFFFF' };
+      
       const getStarColor = (spectralType) => {
+        if (!spectralType || typeof spectralType !== 'string' || spectralType.length === 0) return '#FFFFFF';
         const type = spectralType.charAt(0).toUpperCase();
         return spectralColors[type] || '#FFFFFF';
       };
 
-      // --- Fetch and Render Stars ---
+      const sceneEl = document.querySelector('a-scene');
+
       window.addEventListener('load', () => {
         fetch('/api/stars')
           .then(response => response.json())
           .then(stars => {
             const container = document.getElementById('stars-container');
             stars.forEach(star => {
-              if (star.Star === 'Sun') return; // Don't render the sun at 0,0,0
+              if (star.Star === 'Sun') return; 
+              const starSystem = document.createElement('a-entity');
+              starSystem.setAttribute('position', `${star.x} ${star.z} ${-star.y}`);
+              container.appendChild(starSystem);
 
+              // Create the small, bright core star
               const starEntity = document.createElement('a-sphere');
-              starEntity.setAttribute('position', `${star.x} ${star.z} ${-star.y}`); // A-Frame is Y-up, so we swap z and y
-              starEntity.setAttribute('radius', '0.1'); // Simple radius for now
-              starEntity.setAttribute('color', getStarColor(star.SpectralType));
-              
-              // Add glow
-              starEntity.setAttribute('material', 'shader: standard; emissive: ' + getStarColor(star.SpectralType) + '; emissiveIntensity: 0.6');
-              
-              // Add interactivity
+              const baseRadius = 0.05; 
+              const scaleFactor = 0.15;
+              const solarRadius = parseFloat(star['Radius(R☉)']) || 1.0;
+              const visualRadius = baseRadius + (solarRadius * scaleFactor);
+              starEntity.setAttribute('radius', visualRadius); 
+              const starColor = getStarColor(star.SpectralType);
+              starEntity.setAttribute('color', starColor);
+              starEntity.setAttribute('material', 'shader: standard; emissive: ' + starColor + '; emissiveIntensity: 1.0');
               starEntity.setAttribute('event-set__enter', `_event: mouseenter; _target: #star-label; value: ${star.Star}`);
               starEntity.setAttribute('event-set__leave', `_event: mouseleave; _target: #star-label; value: `);
+              starSystem.appendChild(starEntity);
 
-              container.appendChild(starEntity);
+              // Create the larger, simpler, semi-transparent halo sphere
+              const haloEntity = document.createElement('a-sphere');
+              haloEntity.setAttribute('radius', visualRadius * 6); 
+              haloEntity.setAttribute('material', `shader: flat; color: ${starColor}; transparent: true; opacity: 0.15`);
+              // Make sure the halo doesn't interfere with mouse events
+              haloEntity.setAttribute('raycaster-listen', 'false');
+              starSystem.appendChild(haloEntity);
             });
-          });
+          })
+      });
+
+      // --- Controls are unchanged and stable ---
+      sceneEl.addEventListener('loaded', () => {
+        const orbitPivotEl = document.getElementById('orbit-pivot');
+        const cameraRigEl = document.getElementById('camera-rig');
+        let isOrbiting = false;
+        let lastMouseX = 0;
+        sceneEl.canvas.addEventListener('mousedown', (e) => { if (e.shiftKey) { isOrbiting = true; lastMouseX = e.clientX; cameraRigEl.querySelector('a-camera').setAttribute('look-controls', 'enabled', false); } });
+        window.addEventListener('mousemove', (e) => { if (isOrbiting) { const deltaX = e.clientX - lastMouseX; lastMouseX = e.clientX; const currentRotation = orbitPivotEl.getAttribute('rotation'); orbitPivotEl.setAttribute('rotation', { y: currentRotation.y + deltaX * 0.5 }); } });
+        window.addEventListener('mouseup', () => { if (isOrbiting) { isOrbiting = false; cameraRigEl.querySelector('a-camera').setAttribute('look-controls', 'enabled', true); } });
+        document.addEventListener('wheel', (event) => { const zoomSpeed = 0.01; let newZ = cameraRigEl.object3D.position.z + (event.deltaY * zoomSpeed); if (newZ < 5) newZ = 5; if (newZ > 50) newZ = 50; cameraRigEl.setAttribute('position', { z: newZ }); });
       });
     </script>
   </body>
