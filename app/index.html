@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>NearStarXR - Stable</title>
+    <title>NearStarXR - Final Aesthetics</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-event-set-component@^4.0.0/dist/aframe-event-set-component.min.js"></script>
   </head>
   <body>
-    <!-- We no longer need any assets -->
     <a-scene background="color: #111">
       <a-entity id="stars-container"></a-entity>
       
@@ -21,7 +20,17 @@
     </a-scene>
 
     <script>
-      const spectralColors = { 'O': '#9bb0ff', 'B': '#aabfff', 'A': '#cad8ff', 'F': '#f8f7ff', 'G': '#fff4ea', 'K': '#ffd2a1', 'M': '#ffb568', 'D': '#FFFFFF' };
+      // --- UPDATED: Restored exaggerated colors + a new, more intense red for M-types ---
+      const spectralColors = { 
+        'O': '#9bb0ff', // O-type: Bright Blue-White
+        'B': '#aabfff', // B-type: Blue-White
+        'A': '#cad8ff', // A-type: White
+        'F': '#f8f7ff', // F-type: Yellow-White
+        'G': '#FFEE58', // G-type: Vibrant Yellow (Sun-like)
+        'K': '#FFA726', // K-type: Rich Orange
+        'M': '#E53935', // M-type: Strong Red (for Red Dwarfs)
+        'D': '#FFFFFF'  // D-type: White (White Dwarfs)
+      };
       
       const getStarColor = (spectralType) => {
         if (!spectralType || typeof spectralType !== 'string' || spectralType.length === 0) return '#FFFFFF';
@@ -37,12 +46,10 @@
           .then(stars => {
             const container = document.getElementById('stars-container');
             stars.forEach(star => {
-              if (star.Star === 'Sun') return; 
               const starSystem = document.createElement('a-entity');
               starSystem.setAttribute('position', `${star.x} ${star.z} ${-star.y}`);
               container.appendChild(starSystem);
 
-              // Create the small, bright core star
               const starEntity = document.createElement('a-sphere');
               const baseRadius = 0.05; 
               const scaleFactor = 0.15;
@@ -56,11 +63,10 @@
               starEntity.setAttribute('event-set__leave', `_event: mouseleave; _target: #star-label; value: `);
               starSystem.appendChild(starEntity);
 
-              // Create the larger, simpler, semi-transparent halo sphere
+              // --- UPDATED: Halo size is now smaller ---
               const haloEntity = document.createElement('a-sphere');
-              haloEntity.setAttribute('radius', visualRadius * 6); 
-              haloEntity.setAttribute('material', `shader: flat; color: ${starColor}; transparent: true; opacity: 0.15`);
-              // Make sure the halo doesn't interfere with mouse events
+              haloEntity.setAttribute('radius', visualRadius * 4); // Was 8, now 4
+              haloEntity.setAttribute('material', `shader: flat; color: ${starColor}; transparent: true; opacity: 0.2`);
               haloEntity.setAttribute('raycaster-listen', 'false');
               starSystem.appendChild(haloEntity);
             });
@@ -76,7 +82,7 @@
         sceneEl.canvas.addEventListener('mousedown', (e) => { if (e.shiftKey) { isOrbiting = true; lastMouseX = e.clientX; cameraRigEl.querySelector('a-camera').setAttribute('look-controls', 'enabled', false); } });
         window.addEventListener('mousemove', (e) => { if (isOrbiting) { const deltaX = e.clientX - lastMouseX; lastMouseX = e.clientX; const currentRotation = orbitPivotEl.getAttribute('rotation'); orbitPivotEl.setAttribute('rotation', { y: currentRotation.y + deltaX * 0.5 }); } });
         window.addEventListener('mouseup', () => { if (isOrbiting) { isOrbiting = false; cameraRigEl.querySelector('a-camera').setAttribute('look-controls', 'enabled', true); } });
-        document.addEventListener('wheel', (event) => { const zoomSpeed = 0.01; let newZ = cameraRigEl.object3D.position.z + (event.deltaY * zoomSpeed); if (newZ < 5) newZ = 5; if (newZ > 50) newZ = 50; cameraRigEl.setAttribute('position', { z: newZ }); });
+        document.addEventListener('wheel', (event) => { const zoomSpeed = 0.01; let newZ = cameraRigEl.objectD.position.z + (event.deltaY * zoomSpeed); if (newZ < 5) newZ = 5; if (newZ > 50) newZ = 50; cameraRigEl.setAttribute('position', { z: newZ }); });
       });
     </script>
   </body>
